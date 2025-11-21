@@ -16,6 +16,12 @@ use Core\Projects\Ports\ProjectServiceInterface;
 use Infrastructure\Persistence\Eloquent\Repositories\ProjectRepository;
 use Core\Projects\Application\Services\ProjectService;
 
+// Tasks
+use Core\Tasks\Ports\TaskRepositoryInterface;
+use Core\Tasks\Ports\TaskServiceInterface;
+use Infrastructure\Persistence\Eloquent\Repositories\TaskRepository;
+use Core\Tasks\Application\Services\TaskService;
+
 class AppServiceProvider extends ServiceProvider
 {
     /**
@@ -43,6 +49,17 @@ class AppServiceProvider extends ServiceProvider
         $this->app->bind(
             ProjectServiceInterface::class,
             ProjectService::class
+        );
+
+        // ==================== TASKS ====================
+        $this->app->bind(
+            TaskRepositoryInterface::class,
+            TaskRepository::class
+        );
+
+        $this->app->bind(
+            TaskServiceInterface::class,
+            TaskService::class
         );
     }
 

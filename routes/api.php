@@ -4,6 +4,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\ProjectController;
+use App\Http\Controllers\Api\TaskController;
 
 // Rutas públicas
 Route::post('/auth/register', [AuthController::class, 'register']);
@@ -26,6 +27,11 @@ Route::middleware('auth:sanctum')->group(function () {
     // ==================== PROJECTS CRUD ====================
     Route::apiResource('projects', ProjectController::class);
     Route::patch('/projects/{project}/status', [ProjectController::class, 'updateStatus']);
+
+    Route::prefix('projects/{project}')->group(function () {
+        Route::apiResource('tasks', TaskController::class);
+        Route::patch('/tasks/{task}/status', [TaskController::class, 'updateStatus']);
+    });
 });
 
 // Ruta login temporal para evitar el error
