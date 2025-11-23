@@ -15,10 +15,8 @@ RUN apt-get update && apt-get install -y \
     unzip \
     libzip-dev \
     default-mysql-client \
-    wait-for-it
-
-# Clear cache
-RUN apt-get clean && rm -rf /var/lib/apt/lists/*
+    wait-for-it \
+    && rm -rf /var/lib/apt/lists/*
 
 # Install PHP extensions
 RUN docker-php-ext-install pdo_mysql mysqli mbstring exif pcntl bcmath gd zip
@@ -26,26 +24,35 @@ RUN docker-php-ext-install pdo_mysql mysqli mbstring exif pcntl bcmath gd zip
 # Get latest Composer
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 
-# Create system user to run Composer and Artisan Commands
-RUN useradd -G www-data,root -u $uid -d /home/$user $user
-RUN mkdir -p /home/$user/.composer && \
-    chown -R $user:$user /home/$user
+# Create system user
+RUN useradd -G www-data,root -u $uid -d /home/$user $user \
+    && mkdir -p /home/$user/.composer \
+    && chown -R $user:$user /home/$user
 
 # Set working directory
 WORKDIR /var/www
 
-# Copy existing application directory contents
+# Copy composer files first (for better layer caching)
+COPY composer.json composer.lock ./
+
+# Install dependencies (cached layer)
+RUN composer install --no-dev --optimize-autoloader --no-scripts
+
+
+# Copy the rest of the application
 COPY . .
 
 # Copy custom php.ini
 COPY docker/php.ini /usr/local/etc/php/conf.d/custom.ini
+RUN composer dump-autoload
 
 # Copy deployment script
 COPY docker/deploy.sh /usr/local/bin/deploy.sh
 RUN chmod +x /usr/local/bin/deploy.sh
 
-# Change ownership of our applications
-RUN chown -R www-data:www-data /var/www
+# Fix permissions
+RUN chown -R www-data:www-data /var/www \
+    && chmod -R 775 storage bootstrap/cache vendor
 
 # Change current user to www-data
 USER $user
