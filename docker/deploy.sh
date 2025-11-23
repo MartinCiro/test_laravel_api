@@ -84,18 +84,16 @@ for i in {1..45}; do
     echo "⏳ Intento $i/45 - Esperando a MariaDB..."
     sleep 2
     
-    # Si llegamos al último intento, salir con error
     if [ $i -eq 45 ]; then
         echo "❌ Timeout: MariaDB no está disponible después de 90 segundos"
         exit 1
     fi
 done
 
-# Esperar un poco más para asegurar que MariaDB esté completamente inicializado
 echo "⏳ Esperando inicialización completa de MariaDB..."
 sleep 10
 
-# Verificar si podemos conectar a la base de datos (múltiples intentos)
+# Verificar conexión a la base de datos
 echo "🔍 Verificando conexión a la base de datos..."
 for i in {1..10}; do
     if php -r "
@@ -119,7 +117,7 @@ for i in {1..10}; do
     fi
 done
 
-# Verificar si la base de datos existe, si no crearla
+# Verificar/crear base de datos
 echo "🗃️ Verificando base de datos..."
 php -r "
 try {
@@ -143,7 +141,11 @@ try {
     exit 1
 }
 
-# Verificar si el archivo .env existe, si no crearlo desde .env.example
+# ============================================================================
+# SECCIÓN DE CONFIGURACIÓN LARAVEL
+# ============================================================================
+
+# Configurar .env
 if [ ! -f ".env" ]; then
     echo "📄 Creando archivo .env desde .env.example..."
     cp .env.example .env
@@ -151,7 +153,7 @@ else
     echo "✅ Archivo .env existe"
 fi
 
-# Asegurar que las variables de BD estén en el .env
+# Configurar variables de BD en .env
 echo "🔧 Configurando variables de BD en .env..."
 sed -i "s/^DB_HOST=.*/DB_HOST=$DB_HOST/" .env
 sed -i "s/^DB_PORT=.*/DB_PORT=$DB_PORT/" .env
@@ -196,21 +198,17 @@ else
     echo "⏩ Saltando seeders (RUN_SEEDERS no está habilitado)"
 fi
 
-# Limpiar cache antes de optimizar
-echo "🧹 Limpiando cache..."
+# Optimizar Laravel
+echo "⚡ Optimizando Laravel..."
 php artisan config:clear
 php artisan route:clear
 php artisan view:clear
 php artisan cache:clear
-
-# Optimizar Laravel para producción
-echo "⚡ Optimizando Laravel..."
-php artisan optimize
 php artisan config:cache
 php artisan route:cache
 php artisan view:cache
 
-# Crear enlace de storage si no existe
+# Storage link
 if [ ! -L "public/storage" ]; then
     echo "📁 Creando enlace de storage..."
     php artisan storage:link
