@@ -3,6 +3,8 @@
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Api\ProjectController;
+use App\Http\Controllers\Api\TaskController;
 
 // Rutas públicas
 Route::post('/auth/register', [AuthController::class, 'register']);
@@ -10,6 +12,7 @@ Route::post('/auth/login', [AuthController::class, 'login']);
 
 // Rutas protegidas - usar middleware por defecto
 Route::middleware('auth:sanctum')->group(function () {
+    // Auth routes
     Route::post('/auth/logout', [AuthController::class, 'logout']);
     Route::get('/user', function (Request $request) {
         return response()->json([
@@ -19,6 +22,15 @@ Route::middleware('auth:sanctum')->group(function () {
                 'email' => $request->user()->email,
             ]
         ]);
+    });
+
+    // ==================== PROJECTS CRUD ====================
+    Route::apiResource('projects', ProjectController::class);
+    Route::patch('/projects/{project}/status', [ProjectController::class, 'updateStatus']);
+
+    Route::prefix('projects/{project}')->group(function () {
+        Route::apiResource('tasks', TaskController::class);
+        Route::patch('/tasks/{task}/status', [TaskController::class, 'updateStatus']);
     });
 });
 

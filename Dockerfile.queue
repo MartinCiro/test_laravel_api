@@ -1,0 +1,38 @@
+FROM php:8.2-cli
+
+# Arguments defined in docker-compose.yml
+ARG user=laravel
+ARG uid=1000
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    git \
+    curl \
+    libpng-dev \
+    libonig-dev \
+    libxml2-dev \
+    zip \
+    unzip \
+    libzip-dev \
+    default-mysql-client
+
+# Install PHP extensions
+RUN docker-php-ext-install pdo_mysql mysqli mbstring exif pcntl bcmath gd zip
+
+# Get latest Composer
+COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
+
+# Create system user
+RUN useradd -G www-data,root -u $uid -d /home/$user $user
+RUN mkdir -p /home/$user/.composer && \
+    chown -R $user:$user /home/$user
+
+WORKDIR /var/www
+COPY . .
+
+# Change ownership
+RUN chown -R www-data:www-data /var/www
+USER $user
+
+# Solo instalar dependencias sin ejecutar el script completo
+CMD ["bash", "-c", "composer install --no-dev --optimize-autoloader && php artisan queue:work --sleep=3 --tries=3"]

@@ -1,0 +1,75 @@
+services:
+  laravel_db:
+    image: mariadb:10.11
+    container_name: laravel_mariadb
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: ${DB_DATABASE}
+      MYSQL_USER: ${DB_USERNAME}
+      MYSQL_PASSWORD: ${DB_PASSWORD}
+      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - mariadb_data:/var/lib/mysql
+    ports:
+      - "${DB_PORT}:3306"
+    networks:
+      - laravel-network
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      start_period: 30s
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  laravel_back:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        user: laravel
+        uid: 1000
+    image: laravel-app
+    container_name: laravel_back
+    restart: unless-stopped
+    working_dir: /var/www
+    environment:
+      - DB_CONNECTION=mysql
+      - DB_HOST=laravel_db
+      - DB_PORT=3306
+      - DB_DATABASE=${DB_DATABASE}
+      - DB_USERNAME=${DB_USERNAME}
+      - DB_PASSWORD=${DB_PASSWORD}
+    volumes:
+      - ./:/var/www
+      - ./docker/php.ini:/usr/local/etc/php/conf.d/custom.ini
+    networks:
+      - laravel-network
+    # ELIMINAR depends_on - el script interno manejará la espera
+
+  queue:
+    build:
+      context: .
+      dockerfile: Dockerfile.queue
+    container_name: laravel_queue
+    restart: unless-stopped
+    working_dir: /var/www
+    volumes:
+      - ./:/var/www
+    command: bash -c "php artisan queue:work --sleep=3 --tries=3"
+    environment:
+      - DB_CONNECTION=mysql
+      - DB_HOST=laravel_db
+      - DB_PORT=3306
+      - DB_DATABASE=${DB_DATABASE}
+      - DB_USERNAME=${DB_USERNAME}
+      - DB_PASSWORD=${DB_PASSWORD}
+    networks:
+      - laravel-network
+
+volumes:
+  mariadb_data:
+    driver: local
+
+networks:
+  laravel-network:
+    driver: bridge
