@@ -6,8 +6,8 @@ echo "🚀 Iniciando script de despliegue de Laravel..."
 # Configurar variables por defecto si no existen
 DB_HOST=${DB_HOST:-laravel_db}
 DB_PORT=${DB_PORT:-3306}
-DB_DATABASE=${DB_DATABASE:-laravel}
-DB_USERNAME=${DB_USERNAME:-laravel_user}
+DB_DATABASE=${DB_DATABASE:-iyata}
+DB_USERNAME=${DB_USERNAME:-laravel}
 DB_PASSWORD=${DB_PASSWORD:-password}
 
 echo "📊 Configuración de BD:"
@@ -15,6 +15,64 @@ echo "   Host: $DB_HOST"
 echo "   Puerto: $DB_PORT"
 echo "   Base de datos: $DB_DATABASE"
 echo "   Usuario: $DB_USERNAME"
+
+# ============================================================================
+# VERIFICACIÓN E INSTALACIÓN DE DEPENDENCIAS
+# ============================================================================
+
+echo "📦 Verificando dependencias de Composer..."
+
+# Función para verificar integridad de vendor
+check_vendor_integrity() {
+    if [ ! -f "vendor/autoload.php" ] || [ ! -d "vendor" ]; then
+        echo "❌ vendor/autoload.php no existe o vendor/ está corrupto"
+        return 1
+    fi
+    
+    # Verificar que composer.json y vendor estén sincronizados
+    if ! composer validate --no-check-all --quiet 2>/dev/null; then
+        echo "❌ Validación de Composer falló"
+        return 1
+    fi
+    
+    # Verificar que las dependencias principales existan
+    if [ ! -d "vendor/laravel" ] || [ ! -d "vendor/illuminate" ]; then
+        echo "❌ Dependencias principales faltantes"
+        return 1
+    fi
+    
+    echo "✅ Integridad de dependencias verificada"
+    return 0
+}
+
+# Verificar si necesitamos instalar/reinstalar dependencias
+if ! check_vendor_integrity; then
+    echo "🔧 Instalando/Reinstalando dependencias de Composer..."
+    
+    # Limpiar vendor si existe pero está corrupto
+    if [ -d "vendor" ]; then
+        echo "🧹 Limpiando vendor corrupto..."
+        rm -rf vendor/*
+    fi
+    
+    # Instalar dependencias
+    composer install --no-interaction --prefer-dist --optimize-autoloader --no-dev
+    
+    # Verificar que la instalación fue exitosa
+    if ! check_vendor_integrity; then
+        echo "❌ Error crítico: No se pudieron instalar las dependencias"
+        exit 1
+    fi
+else
+    echo "✅ Dependencias ya instaladas y validadas"
+    
+    # Actualizar autoloader por si acaso
+    composer dump-autoload --optimize --no-dev
+fi
+
+# ============================================================================
+# SECCIÓN ORIGINAL: CONEXIÓN A BASE DE DATOS
+# ============================================================================
 
 # Esperar a que MariaDB esté listo (máximo 90 segundos)
 echo "⏳ Esperando a que MariaDB esté disponible en $DB_HOST:$DB_PORT..."
@@ -66,18 +124,18 @@ echo "🗃️ Verificando base de datos..."
 php -r "
 try {
     \$pdo = new PDO('mysql:host=$DB_HOST;port=$DB_PORT', '$DB_USERNAME', '$DB_PASSWORD');
-    \$pdo->exec('USE `$DB_DATABASE`');
+    \$pdo->exec('USE \`$DB_DATABASE\`');
     echo '✅ Base de datos existe\n';
 } catch (PDOException \$e) {
     echo '📦 Creando base de datos...\n';
-    \$pdo->exec('CREATE DATABASE IF NOT EXISTS `$DB_DATABASE` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci');
+    \$pdo->exec('CREATE DATABASE IF NOT EXISTS \`$DB_DATABASE\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci');
     
     # Verificar que se creó correctamente
-    \$pdo->exec('USE `$DB_DATABASE`');
+    \$pdo->exec('USE \`$DB_DATABASE\`');
     echo '✅ Base de datos creada exitosamente\n';
     
     # Otorgar permisos al usuario si es necesario
-    \$pdo->exec(\"GRANT ALL PRIVILEGES ON `$DB_DATABASE`.* TO '$DB_USERNAME'@'%'\");
+    \$pdo->exec(\"GRANT ALL PRIVILEGES ON \`$DB_DATABASE\`.* TO '$DB_USERNAME'@'%'\");
     echo '✅ Permisos otorgados al usuario\n';
 }
 " || {
@@ -101,13 +159,25 @@ sed -i "s/^DB_DATABASE=.*/DB_DATABASE=$DB_DATABASE/" .env
 sed -i "s/^DB_USERNAME=.*/DB_USERNAME=$DB_USERNAME/" .env
 sed -i "s/^DB_PASSWORD=.*/DB_PASSWORD=$DB_PASSWORD/" .env
 
-# Instalar dependencias de Composer
-echo "📦 Instalando dependencias de Composer..."
-# Siempre instalar/actualizar para asegurar consistencia
-composer install --no-interaction --prefer-dist --optimize-autoloader --no-dev
+# ============================================================================
+# VERIFICAR DEPENDENCIAS NUEVAMENTE ANTES DE MIGRAR
+# ============================================================================
+
+echo "🔍 Verificación final de dependencias antes de migrar..."
+if ! check_vendor_integrity; then
+    echo "❌ Error crítico: Dependencias corruptas antes de migrar"
+    echo "🔄 Reinstalando dependencias de emergencia..."
+    rm -rf vendor
+    composer install --no-interaction --prefer-dist --optimize-autoloader --no-dev
+    
+    if ! check_vendor_integrity; then
+        echo "💥 Error fatal: No se pudieron recuperar las dependencias"
+        exit 1
+    fi
+fi
 
 # Generar key de Laravel si no existe
-if [ -z "$(grep -E '^APP_KEY=.+$' .env)" ] || grep -q '^APP_KEY=$' .env || grep -q 'Your32CharacterKeyHere' .env; then
+if [ -z "\$(grep -E '^APP_KEY=.+\$' .env)" ] || grep -q '^APP_KEY=\$' .env || grep -q 'Your32CharacterKeyHere' .env; then
     echo "🔑 Generando key de Laravel..."
     php artisan key:generate --force
 else
@@ -119,7 +189,7 @@ echo "🗃️ Ejecutando migraciones..."
 php artisan migrate --force
 
 # Ejecutar seeders si existe la bandera o en entorno de desarrollo
-if [ "${RUN_SEEDERS:-false}" = "true" ]; then
+if [ "\${RUN_SEEDERS:-false}" = "true" ]; then
     echo "🌱 Ejecutando seeders..."
     php artisan db:seed --force
 else
@@ -150,7 +220,7 @@ fi
 echo "🏥 Verificando salud de la aplicación..."
 php -r "
 try {
-    \$pdo = new PDO('mysql:host=$DB_HOST;port=$DB_PORT;dbname=$DB_DATABASE', '$DB_USERNAME', '$DB_PASSWORD');
+    \$pdo = new PDO('mysql:host=\$DB_HOST;port=\$DB_PORT;dbname=\$DB_DATABASE', '\$DB_USERNAME', '\$DB_PASSWORD');
     \$pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
     
     // Verificar que podemos ejecutar una consulta simple
@@ -173,14 +243,37 @@ require_once 'vendor/autoload.php';
 echo '✅ Salud de Laravel: OK\n';
 "
 
+# ============================================================================
+# VERIFICACIÓN FINAL
+# ============================================================================
+
+echo "🔍 Verificación final del despliegue..."
+
+# Verificar que artisan funcione
+if php artisan --version > /dev/null 2>&1; then
+    echo "✅ Artisan funcionando correctamente"
+else
+    echo "❌ Error: Artisan no funciona"
+    exit 1
+fi
+
+# Verificar que las rutas estén cargadas
+if php artisan route:list --no-ansi > /dev/null 2>&1; then
+    echo "✅ Rutas cargadas correctamente"
+else
+    echo "❌ Error: No se pueden cargar las rutas"
+    exit 1
+fi
+
 echo ""
 echo "🎉 ¡Despliegue completado exitosamente!"
 echo "📊 Resumen:"
+echo "   ✅ Dependencias verificadas e instaladas"
 echo "   ✅ MariaDB conectado"
 echo "   ✅ Base de datos verificada/creada"
-echo "   ✅ Dependencias instaladas"
 echo "   ✅ Variables de entorno configuradas"
 echo "   ✅ Migraciones ejecutadas"
 echo "   ✅ Aplicación optimizada"
+echo "   ✅ Salud de la aplicación verificada"
 echo ""
 echo "🚀 La aplicación está lista para usar!"

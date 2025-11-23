@@ -44,7 +44,6 @@ services:
       - ./docker/php.ini:/usr/local/etc/php/conf.d/custom.ini
     networks:
       - laravel-network
-    # ELIMINAR depends_on - el script interno manejará la espera
 
   queue:
     build:
