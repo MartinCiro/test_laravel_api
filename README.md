@@ -1,7 +1,8 @@
 # Iyata API - Backend
 
-> **📌 Nota:** Este repositorio contiene el **Backend (API RESTful)** del proyecto.  
-> 🔗 **Información del proyecto:** [Prueba técnica](https://github.com/MartinCiro/algorithms_test)
+> **📌 Nota:** Este repositorio contiene el **Backend (API RESTful)** del proyecto.
+> 🔗 **Frontend (SPA):** [Iyata front (Vite)](https://github.com/MartinCiro/front_vite_iyata.git)  
+> 🔗 **Información del proyecto:** [Prueba técnica](https://github.com/MartinCiro/test_iyata)
 
 API RESTful construida con Laravel, diseñada bajo los principios de **Arquitectura Hexagonal (Ports & Adapters)** y **Domain-Driven Design (DDD)** para garantizar un código escalable, mantenible y con una clara separación de responsabilidades.
 
@@ -23,26 +24,26 @@ API RESTful construida con Laravel, diseñada bajo los principios de **Arquitect
 ```mermaid
 graph TB
     subgraph Cliente["🌐 Cliente (Frontend / Postman)"]
-        Client[HTTP/JSON Requests]
+        Client["HTTP/JSON Requests"]
     end
 
     subgraph API["⚡ Laravel API Layer"]
-        Routes[routes/api.php]
-        Middleware[Middleware: auth:sanctum]
-        Controllers[Api Controllers]
+        Routes["routes/api.php"]
+        Middleware["Middleware: auth:sanctum"]
+        Controllers["Api Controllers"]
         Client --> Routes --> Middleware --> Controllers
     end
 
     subgraph Core["🧠 Core (Dominio y Aplicación)"]
-        Services[Application Services<br/>(Casos de Uso)]
-        Ports[Ports<br/>(Interfaces/Contratos)]
+        Services["Application Services<br/>Casos de Uso"]
+        Ports["Ports<br/>Interfaces/Contratos"]
         Controllers --> Services
         Services --> Ports
     end
 
     subgraph Infrastructure["🏗️ Infraestructura (Adaptadores)"]
-        Repositories[Eloquent Repositories]
-        Models[Eloquent Models]
+        Repositories["Eloquent Repositories"]
+        Models["Eloquent Models"]
         DB[("💾 MariaDB")]
         
         Ports -.->|Implementa| Repositories
